@@ -1,0 +1,117 @@
+version: 1.0.0
+author: Minseok Bang
+
+desc: MS_LUFS Analyzer
+options: gmem=MS_LUFS_Shared
+
+@init
+// 1. K-Weighting Filter (BS.1770-4 Standard)
+f0_p = 1681.974450955533; G_p = 3.999843853973347; Q_p = 0.7071752369554196;
+K_p = tan($pi * f0_p / srate); Vh = pow(10, G_p / 20); Vb = pow(Vh, 0.4996667741545416);
+a0_p = 1 + K_p/Q_p + sqr(K_p);
+pb0 = (Vh + Vb*K_p/Q_p + sqr(K_p)) / a0_p;
+pb1 = 2 * (sqr(K_p) - Vh) / a0_p;
+pb2 = (Vh - Vb*K_p/Q_p + sqr(K_p)) / a0_p;
+pa1 = 2 * (sqr(K_p) - 1) / a0_p;
+pa2 = (1 - K_p/Q_p + sqr(K_p)) / a0_p;
+
+f0_r = 38.13547087602444; Q_r = 0.5003270373238773; K_r = tan($pi * f0_r / srate);
+a0_r = 1 + K_r/Q_r + sqr(K_r);
+ra1 = 2 * (sqr(K_r) - 1) / a0_r;
+ra2 = (1 - K_r/Q_r + sqr(K_r)) / a0_r;
+rb0 = 1; rb1 = -2; rb2 = 1;   // BS.1770-4 spec numerator (do NOT divide by a0_r)
+
+// 2. High-Precision Histogram Setup (0.01dB per Bin)
+NUM_BINS = 15000;
+BINS_PER_DB = 100;
+DB_PER_BIN = 1 / BINS_PER_DB;
+
+ring_m = 0; ring_s = 10;
+hist_a_cnt = 100; hist_a_sum = 16000; hist_b_cnt = 32000;
+
+function reset_meters() (
+    memset(ring_m, 0, 4); memset(ring_s, 0, 30);
+    memset(hist_a_cnt, 0, NUM_BINS); memset(hist_a_sum, 0, NUM_BINS); memset(hist_b_cnt, 0, NUM_BINS);
+    idx_m = 0; idx_s = 0; sum_m = 0; sum_s = 0; blocks_m = 0; blocks_s = 0;
+    acc_energy = 0; sample_count = 0; tot_a_sum = 0; tot_a_cnt = 0; tot_b_sum = 0; tot_b_cnt = 0;
+    peak_val = 0; max_mom = -150; m_db = -150; s_db = -150; i_db = -150; lra_val = 0;
+    z1_l = 0; z2_l = 0; z1_r = 0; z2_r = 0;
+
+    // Clear filter state history to prevent ghost noise on playback
+    xl1 = 0; xl2 = 0; yl1 = 0; yl2 = 0;
+    xr1 = 0; xr2 = 0; yr1 = 0; yr2 = 0;
+    hxl1 = 0; hxl2 = 0; hyl1 = 0; hyl2 = 0;
+    hxr1 = 0; hxr2 = 0; hyr1 = 0; hyr2 = 0;
+);
+
+step_samples = floor(srate * 0.1 + 0.5);
+reset_meters();
+last_play_state = -1;
+
+@block
+// Deterministic reset: fire ONLY on the play-start edge (stop->play).
+// No play_position heuristic — it jitters under anticipative FX processing and
+// caused spurious mid-playback resets (the run-to-run variation you saw).
+playing     = play_state == 1 || play_state == 2;
+was_playing = last_play_state == 1 || last_play_state == 2;
+(playing && !was_playing) ? reset_meters();
+last_play_state = play_state;
+
+// Output data to Lua UI via gmem
+gmem[0] = max_mom;                                               // 0: Momentary Max (LUFS)
+gmem[1] = s_db;                                                  // 1: Short Term (LUFS)
+gmem[2] = i_db;                                                  // 2: Integrated (LUFS)
+gmem[3] = lra_val;                                               // 3: Loudness Range (LU)
+gmem[4] = peak_val > 0.0000000001 ? 20 * log10(peak_val) : -150; // 4: True Peak (dBTP)
+gmem[5] = play_state;                                            // 5: Play State (0: Stop, 1: Play, 2: Record)
+
+@sample
+(play_state == 1 || play_state == 2) ? (
+    in0 = spl0; in1 = spl1;
+    out0 = pb0*in0 + pb1*xl1 + pb2*xl2 - pa1*yl1 - pa2*yl2; xl2=xl1; xl1=in0; yl2=yl1; yl1=out0;
+    out1 = pb0*in1 + pb1*xr1 + pb2*xr2 - pa1*yr1 - pa2*yr2; xr2=xr1; xr1=in1; yr2=yr1; yr1=out1;
+    f0 = rb0*out0 + rb1*hxl1 + rb2*hxl2 - ra1*hyl1 - ra2*hyl2; hxl2=hxl1; hxl1=out0; hyl2=hyl1; hyl1=f0;
+    f1 = rb0*out1 + rb1*hxr1 + rb2*hxr2 - ra1*hyr1 - ra2*hyr2; hxr2=hxr1; hxr1=out1; hyr2=hyr1; hyr1=f1;
+
+    peak_l = abs(in0);
+    (z1_l > in0 && z1_l > z2_l) ? ( d = z2_l-2*z1_l+in0; d!=0 ? ( a=(z2_l-in0)/(2*d); tp=z1_l-0.25*(z2_l-in0)*a; tp>peak_l ? peak_l=tp; );
+    ) : (z1_l < in0 && z1_l < z2_l) ? ( d = z2_l-2*z1_l+in0; d!=0 ? ( a=(z2_l-in0)/(2*d); tp=abs(z1_l-0.25*(z2_l-in0)*a); tp>peak_l ? peak_l=tp; ); );
+    z2_l = z1_l; z1_l = in0;
+    peak_r = abs(in1);
+    (z1_r > in1 && z1_r > z2_r) ? ( d = z2_r-2*z1_r+in1; d!=0 ? ( a=(z2_r-in1)/(2*d); tp=z1_r-0.25*(z2_r-in1)*a; tp>peak_r ? peak_r=tp; );
+    ) : (z1_r < in1 && z1_r < z2_r) ? ( d = z2_r-2*z1_r+in1; d!=0 ? ( a=(z2_r-in1)/(2*d); tp=abs(z1_r-0.25*(z2_r-in1)*a); tp>peak_r ? peak_r=tp; ); );
+    z2_r = z1_r; z1_r = in1;
+    peak_val = max(peak_val, max(peak_l, peak_r));
+
+    energy = f0*f0 + f1*f1; acc_energy += energy; sample_count += 1;
+
+    (sample_count >= step_samples) ? (
+        block_e = acc_energy / step_samples; acc_energy = 0; sample_count = 0;
+        old_m = ring_m[idx_m]; ring_m[idx_m] = block_e; sum_m = sum_m + block_e - old_m; idx_m = (idx_m + 1) % 4; blocks_m < 4 ? blocks_m += 1;
+        cur_mom = sum_m / blocks_m; m_db = cur_mom > 0.0000000001 ? 10 * log10(cur_mom) - 0.691 : -150;
+        (blocks_m >= 4 && m_db > max_mom) ? max_mom = m_db;   // Momentary Max on the 100ms grid (EBU Tech 3341)
+        old_s = ring_s[idx_s]; ring_s[idx_s] = block_e; sum_s = sum_s + block_e - old_s; idx_s = (idx_s + 1) % 30; blocks_s < 30 ? blocks_s += 1;
+        cur_short = sum_s / blocks_s; s_db = cur_short > 0.0000000001 ? 10 * log10(cur_short) - 0.691 : -150;
+
+        a_bin = floor((m_db + 70) * BINS_PER_DB);
+        // Only complete 400ms gating blocks (blocks_m >= 4), per EBU R128.
+        (blocks_m >= 4 && a_bin >= 0) ? ( a_bin >= NUM_BINS ? a_bin = NUM_BINS - 1; hist_a_cnt[a_bin] += 1; hist_a_sum[a_bin] += cur_mom; tot_a_cnt += 1; tot_a_sum += cur_mom;
+            abs_db = 10 * log10(tot_a_sum / tot_a_cnt) - 0.691;
+            rel_gate = max(floor((abs_db - 10 + 70) * BINS_PER_DB), 0);
+            si=0; ci=0; b=rel_gate; while(b < NUM_BINS) ( ci += hist_a_cnt[b]; si += hist_a_sum[b]; b += 1; );
+            i_db = ci > 0 ? 10 * log10(si / ci) - 0.691 : -150;
+        );
+        blocks_s >= 30 ? ( b_bin = floor((s_db + 70) * BINS_PER_DB);
+            b_bin >= 0 ? ( b_bin >= NUM_BINS ? b_bin = NUM_BINS - 1; hist_b_cnt[b_bin] += 1; tot_b_sum += cur_short; tot_b_cnt += 1;
+                tot_b_cnt >= 20 ? ( avg_b = 10 * log10(tot_b_sum / tot_b_cnt) - 0.691;
+                    rel_g_b = max(floor((avg_b - 20 + 70) * BINS_PER_DB), 0);
+                    lc=0; b=rel_g_b; while(b < NUM_BINS) ( lc += hist_b_cnt[b]; b += 1; );
+                    lc >= 20 ? ( llo=0; lhi=0; b=rel_g_b; while(b < NUM_BINS && llo < lc*0.1) ( llo += hist_b_cnt[b]; b += 1; ); blo=b-1;
+                        b=NUM_BINS-1; while(b >= rel_g_b && lhi < lc*0.05) ( lhi += hist_b_cnt[b]; b -= 1; ); bhi=b+1;
+                        lra_val = (bhi - blo) * DB_PER_BIN;
+                    );
+                );
+            );
+        );
+    );
+);
