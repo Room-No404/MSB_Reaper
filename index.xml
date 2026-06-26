@@ -1,29 +1,24 @@
 
 <?xml version="1.0" encoding="utf-8"?>
-<index version="1.0" name="MSB">
+<index version="1" name="MSB">
 
-  <!-- ReaScripts -->
   <category name="LUFS Meter">
-    <reapack name="MSB_LUFS Meter.lua" type="script" desc="MSB_LUFS Meter.lua">
-      <version name="1.0" author="Minseok Bang" time="06-26-2026">
+    <reapack name="MSB_LUFS Meter.lua" type="script" desc="MSB LUFS Meter (Lua)">
+      <version name="1.0" author="Minseok Bang" time="2026-06-26T00:00:00Z">
         <source main="main">https://raw.githubusercontent.com/Room-No404/MSB_Reaper/refs/heads/main/ReaScripts/MSB_LUFS%20Meter.lua</source>
+      </version>
+    </reapack>
+    <reapack name="MSB_LUFS_Analyzer" type="effect" desc="MSB LUFS Analyzer (JSFX)">
+      <version name="1.0" author="Minseok Bang" time="2026-06-26T00:00:00Z">
+        <source>https://raw.githubusercontent.com/Room-No404/MSB_Reaper/refs/heads/main/JSFX/MSB_LUFS_Analyzer</source>
       </version>
     </reapack>
   </category>
 
   <category name="Mini Item Properties">
-    <reapack name="MSB_Mini Item Properties.lua" type="script" desc="MSB_Mini Item Properties.lua">
-      <version name="1.0" author="Minseok Bang" time="06-26-2026">
+    <reapack name="MSB_Mini Item Properties.lua" type="script" desc="MSB Mini Item Properties">
+      <version name="1.0" author="Minseok Bang" time="2026-06-26T00:00:00Z">
         <source main="main">https://raw.githubusercontent.com/Room-No404/MSB_Reaper/refs/heads/main/ReaScripts/MSB_Mini%20Item%20Properties.lua</source>
-      </version>
-    </reapack>
-  </category>
-
-  <!-- JSFX -->
-  <category name="LUFS Meter">
-    <reapack name="MSB_LUFS_Analyzer" type="effect" desc="MSB_LUFS_Analyzer">
-      <version name="1.0" author="Minseok Bang" time="06-26-2026">
-        <source main="main">https://raw.githubusercontent.com/Room-No404/MSB_Reaper/refs/heads/main/JSFX/MSB_LUFS_Analyzer</source>
       </version>
     </reapack>
   </category>
