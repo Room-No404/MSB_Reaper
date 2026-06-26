@@ -1,8 +1,8 @@
 version: 1.0.0
 author: Minseok Bang
 
-desc: MS_LUFS Analyzer
-options: gmem=MS_LUFS_Shared
+desc: MSB_LUFS Analyzer
+options: gmem=MSB_LUFS_Shared
 
 @init
 // 1. K-Weighting Filter (BS.1770-4 Standard)
