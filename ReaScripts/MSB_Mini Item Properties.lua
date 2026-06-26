@@ -1,4 +1,4 @@
--- @description MS_Mini Item Properites
+-- @description MSB_Mini Item Properites
 -- @version 0.9.0
 -- @author Minseok Bang
 -- @requires ReaImGui (ReaPack)
@@ -103,7 +103,7 @@ end
 -- =====================
 -- ImGui init
 -- =====================
-local ctx = reaper.ImGui_CreateContext('MS_Mini Item Properites')
+local ctx = reaper.ImGui_CreateContext('MSB_Mini Item Properites')
 reaper.ImGui_SetNextWindowSize(ctx, 520, 78, reaper.ImGui_Cond_FirstUseEver())
 
 -- =====================
@@ -360,7 +360,7 @@ local function loop()
   push_theme()
 
   local win_flags = reaper.ImGui_WindowFlags_NoScrollbar() | reaper.ImGui_WindowFlags_NoScrollWithMouse()
-  local visible, open = reaper.ImGui_Begin(ctx, 'MS_Mini Item Properites', true, win_flags)
+  local visible, open = reaper.ImGui_Begin(ctx, 'MSB_Mini Item Properites', true, win_flags)
 
   if visible then
     consumed_wheel = false
