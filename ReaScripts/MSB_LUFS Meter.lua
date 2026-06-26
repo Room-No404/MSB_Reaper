@@ -1,4 +1,4 @@
--- @description MS_LUFS Meter
+-- @description MSB_LUFS Meter
 -- @author Minseok Bang
 -- @requires ReaImGui v1.0.0
 
@@ -36,8 +36,8 @@ local PRESETS = {
     { name = "ASWG Portable (Sony)", int = -18.0, tp = -1.0 }
 }
 
-reaper.gmem_attach('MS_LUFS_Shared')
-local ctx = reaper.ImGui_CreateContext('MS_LUFS Meter')
+reaper.gmem_attach('MSB_LUFS_Shared')
+local ctx = reaper.ImGui_CreateContext('MSB_LUFS Meter')
 local f_sans = reaper.ImGui_CreateFont(CONFIG.FNT_FAMILY)
 reaper.ImGui_Attach(ctx, f_sans)
 
@@ -109,7 +109,7 @@ local function loop()
     reaper.ImGui_PushStyleColor(ctx, reaper.ImGui_Col_WindowBg(), CONFIG.C_BG)
     reaper.ImGui_PushStyleVar(ctx, reaper.ImGui_StyleVar_WindowPadding(), CONFIG.PAD_X, CONFIG.PAD_Y)
     reaper.ImGui_SetNextWindowSize(ctx, CONFIG.WIN_W, CONFIG.WIN_H, reaper.ImGui_Cond_FirstUseEver())
-    local vis, open = reaper.ImGui_Begin(ctx, 'MS_LUFS Meter', true, reaper.ImGui_WindowFlags_NoScrollbar())
+    local vis, open = reaper.ImGui_Begin(ctx, 'MSB_LUFS Meter', true, reaper.ImGui_WindowFlags_NoScrollbar())
 
     if vis then
         local m = reaper.gmem_read(0)
